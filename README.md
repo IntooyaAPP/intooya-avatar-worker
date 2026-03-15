@@ -1,0 +1,1 @@
+# intooya-avatar-worker
