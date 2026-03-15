@@ -18,4 +18,5 @@ def handler(job):
         "script": script
     }
 
-runpod.serverless.start({"handler": handler})
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": handler})
