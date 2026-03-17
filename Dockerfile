@@ -11,7 +11,7 @@ RUN git clone https://github.com/TMElyralab/MuseTalk.git
 # Install MuseTalk dependencies
 WORKDIR /workspace/MuseTalk
 RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install -e .
 # Go back to root
 WORKDIR /workspace
 
