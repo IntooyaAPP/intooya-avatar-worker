@@ -10,6 +10,11 @@ WORKDIR /workspace
 # Prebuilt torch (fast)
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
+# Install OpenMMLab deps (REQUIRED for MuseTalk)
+RUN pip install --no-cache-dir openmim
+RUN mim install "mmcv>=2.0.0"
+RUN mim install "mmpose>=1.0.0"
+
 # Clone MuseTalk
 RUN git clone https://github.com/TMElyralab/MuseTalk.git
 
