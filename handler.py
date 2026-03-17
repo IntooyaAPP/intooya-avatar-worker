@@ -61,14 +61,8 @@ def handler(job):
         print("Downloading voice...")
         download(voice_url, voice_file)
 
-        print("Generating speech (XTTS)...")
-        run([
-            "/workspace/venvs/xtts/bin/python",
-            "/workspace/xtts_infer.py",
-            script,
-            str(voice_file),
-            str(speech_file)
-        ])
+        print("Using placeholder audio...")
+        speech_file = voice_file
 
         print("Running MuseTalk...")
 
