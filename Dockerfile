@@ -1,12 +1,13 @@
 FROM python:3.10
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONPATH="/workspace/MuseTalk"
 
 RUN apt-get update && apt-get install -y ffmpeg git
 
 WORKDIR /workspace
 
-# 🔥 Install prebuilt torch (this avoids 30+ min builds)
+# Prebuilt torch (fast)
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # Clone MuseTalk
@@ -16,7 +17,6 @@ WORKDIR /workspace/MuseTalk
 
 # Install deps
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install -e .
 
 WORKDIR /workspace
 
