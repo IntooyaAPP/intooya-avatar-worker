@@ -4,6 +4,7 @@ import subprocess
 import requests
 import boto3
 import shutil
+import sys
 from pathlib import Path
 
 BASE = Path("/workspace/worker")
@@ -29,14 +30,26 @@ s3 = boto3.client(
 
 def run(cmd):
     print("RUN:", cmd)
-    subprocess.run(cmd, check=True)
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    print("STDOUT:\n", result.stdout)
+    print("STDERR:\n", result.stderr)
+
+    if result.returncode != 0:
+        raise Exception(
+            f"Command failed:\n{cmd}\n\nSTDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+        )
+
+    return result
 
 def download(url, path):
     r = requests.get(url, stream=True)
     r.raise_for_status()
     with open(path, "wb") as f:
-        for chunk in r.iter_content(1024*1024):
-            f.write(chunk)
+        for chunk in r.iter_content(1024 * 1024):
+            if chunk:
+                f.write(chunk)
 
 def handler(job):
 
@@ -51,17 +64,35 @@ def handler(job):
         avatar_url = inp["avatar_video_url"]
         voice_url = inp["voice_sample_url"]
 
+        raw_avatar = job_dir / "avatar_input"
         avatar_file = job_dir / "avatar.mp4"
+
+        raw_voice = job_dir / "voice_input"
         voice_file = job_dir / "voice.wav"
-        speech_file = job_dir / "speech.wav"
 
         print("Downloading avatar...")
-        download(avatar_url, avatar_file)
+        download(avatar_url, raw_avatar)
 
         print("Downloading voice...")
-        download(voice_url, voice_file)
+        download(voice_url, raw_voice)
 
-        print("Using placeholder audio...")
+        print("Converting avatar to mp4...")
+        run([
+            "ffmpeg", "-y",
+            "-i", str(raw_avatar),
+            "-r", "25",
+            str(avatar_file)
+])
+
+        print("Converting voice to wav...")
+        run([
+            "ffmpeg", "-y",
+            "-i", str(raw_voice),
+            "-ar", "16000",
+            "-ac", "1",
+            str(voice_file)
+])
+
         speech_file = voice_file
 
         print("Running MuseTalk...")
@@ -72,13 +103,13 @@ def handler(job):
         run([
             "bash",
             "-c",
-            f"cd /workspace/MuseTalk && /workspace/venvs/musetalk/bin/python scripts/inference.py \
-            --inference_config configs/inference/realtime.yaml \
-            --result_dir {frames} \
-            --version v15 \
-            --video_path {avatar_file} \
-            --audio_path {speech_file}"
-        ])
+            f"cd /workspace/MuseTalk && {sys.executable} scripts/inference.py "
+            f"--inference_config configs/inference/realtime.yaml "
+            f"--result_dir {frames} "
+            f"--version v15 "
+            f"--video_path {avatar_file} "
+            f"--audio_path {speech_file}"
+       ])
 
         final_video = OUTPUT / f"{job_id}.mp4"
 
