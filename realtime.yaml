@@ -1,0 +1,3 @@
+task_0:
+  video_path: "/workspace/test/video.mp4"
+  audio_path: "/workspace/test/audio.wav"
