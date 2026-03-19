@@ -1,3 +1,4 @@
+You're right, sorry. Here's the complete musetalk_requirements.txt — select all and replace everything:
 absl-py==2.4.0
 accelerate==0.28.0
 addict==2.4.0
@@ -188,13 +189,12 @@ threadpoolctl==3.6.0
 tokenizers==0.15.2
 tomli==2.4.0
 tomlkit==0.13.3
-torch==2.0.1+cu118
-torchaudio==2.0.2+cu118
-torchvision==0.15.2+cu118
+torch==2.4.0
+torchaudio==2.4.0
+torchvision==0.19.0
 tqdm==4.65.2
 tqdm-loggable==0.4
 transformers==4.39.2
-triton==2.0.0
 typer==0.24.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
