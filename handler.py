@@ -24,12 +24,7 @@ s3 = boto3.client("s3", endpoint_url=R2_ENDPOINT,
     aws_access_key_id=R2_ACCESS_KEY, aws_secret_access_key=R2_SECRET_KEY)
 
 os.environ["COQUI_TOS_AGREED"] = "1"
-import sys
-sys.path.insert(0, "/runpod-volume/venvs/xtts/lib/python3.10/site-packages")
-from TTS.api import TTS
-print("Pre-loading XTTS model...")
-tts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-print("XTTS ready.")
+print("Handler starting up.")
 
 def download(url, path):
     r = requests.get(url, stream=True)
@@ -104,9 +99,12 @@ def handler(job):
         else:
             print("First time - preprocessing avatar (one-time cost)...")
 
-        print("Generating speech...")
-        tts_model.tts_to_file(text=script, speaker_wav=str(voice_file),
-            language="en", file_path=str(speech_file))
+        print("Generating speech with XTTS...")
+        subprocess.run([
+            "/runpod-volume/venvs/xtts/bin/python",
+            "/runpod-volume/xtts_infer.py",
+            script, str(voice_file), str(speech_file)
+        ], check=True)
 
         os.makedirs(results_dir, exist_ok=True)
 
