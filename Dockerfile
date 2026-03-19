@@ -61,3 +61,39 @@ RUN mkdir -p /workspace/MuseTalk/models/face-parse-bisent && \
     wget -q -O /workspace/MuseTalk/models/face-parse-bisent/79999_iter.pth \
     "https://huggingface.co/TMElyralab/MuseTalk/resolve/main/face-parse-bisent/79999_iter.pth" && \
     wget -q -O /workspace/MuseTalk/models/face-parse-bisent/resnet18-5
+    "https://download.pytorch.org/models/resnet18-5c106cde.pth"
+
+# Whisper tiny (384 dims — matches UNet)
+RUN mkdir -p /workspace/MuseTalk/models/whisper && \
+    wget -q -O /workspace/MuseTalk/models/whisper/config.json \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/config.json" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/pytorch_model.bin \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/pytorch_model.bin" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/preprocessor_config.json \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/preprocessor_config.json" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/tokenizer_config.json \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/tokenizer_config.json" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/vocab.json \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/vocab.json" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/merges.txt \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/merges.txt" && \
+    wget -q -O /workspace/MuseTalk/models/whisper/special_tokens_map.json \
+    "https://huggingface.co/openai/whisper-tiny/resolve/main/special_tokens_map.json"
+
+# Download XTTS models at build time
+RUN /workspace/venvs/xtts/bin/python -c \
+    "from TTS.api import TTS; TTS('tts_models/multilingual/multi-dataset/xtts_v2')"
+
+# Fix MuseTalk inference.py
+RUN sed -i 's|default="./models/musetalk/config.json"|default="./models/musetalkV15/musetalk.json"|' \
+    /workspace/MuseTalk/scripts/inference.py
+
+# Copy working files
+COPY realtime.yaml /workspace/MuseTalk/configs/inference/realtime.yaml
+COPY handler.py /workspace/handler.py
+COPY xtts_infer.py /workspace/xtts_infer.py
+
+# Create required directories
+RUN mkdir -p /workspace/worker/output /workspace/worker/tmp /workspace/test /workspace/results
+
+CMD ["python", "/workspace/handler.py"]
