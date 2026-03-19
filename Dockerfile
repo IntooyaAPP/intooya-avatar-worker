@@ -1,47 +1,63 @@
-FROM python:3.10
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONPATH="/workspace/MuseTalk"
+ENV PYTHONPATH=/workspace/MuseTalk
+ENV COQUI_TOS_AGREED=1
 
-RUN apt-get update && apt-get install -y ffmpeg git curl
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg git wget curl espeak-ng python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 
 # Clone MuseTalk
-RUN git clone https://github.com/TMElyralab/MuseTalk.git
+RUN git clone https://github.com/TMElyralab/MuseTalk.git /workspace/MuseTalk
 
-WORKDIR /workspace/MuseTalk
+# Create venvs
+RUN python3 -m venv /workspace/venvs/musetalk
+RUN python3 -m venv /workspace/venvs/xtts
 
-# Install base deps
-RUN pip install --no-cache-dir -r requirements.txt
+# Install musetalk dependencies
+COPY musetalk_requirements.txt /workspace/musetalk_requirements.txt
+RUN /workspace/venvs/musetalk/bin/pip install --upgrade pip && \
+    /workspace/venvs/musetalk/bin/pip install \
+    --extra-index-url https://download.pytorch.org/whl/cu124 \
+    -r /workspace/musetalk_requirements.txt
 
-# Install OpenMMLab stack (REQUIRED)
-RUN pip install --no-cache-dir -U openmim
-RUN mim install mmengine
-RUN mim install "mmcv>=2.0.1"
-RUN mim install "mmdet>=3.1.0"
-RUN mim install "mmpose>=1.1.0"
+# Install xtts dependencies
+COPY xtts_requirements.txt /workspace/xtts_requirements.txt
+RUN /workspace/venvs/xtts/bin/pip install --upgrade pip && \
+    /workspace/venvs/xtts/bin/pip install -r /workspace/xtts_requirements.txt
 
-# Create model dirs
-RUN mkdir -p models/dwpose
-RUN mkdir -p models/musetalkV15
-RUN mkdir -p models/sd-vae
+# Install runpod in both venvs
+RUN /workspace/venvs/musetalk/bin/pip install runpod boto3 requests
+RUN /workspace/venvs/xtts/bin/pip install runpod boto3 requests
 
-# Download models
-RUN curl -L https://huggingface.co/TMElyralab/MuseTalk/resolve/main/dwpose/dw-ll_ucoco_384.pth \
--o models/dwpose/dw-ll_ucoco_384.pth
+# Download MuseTalk models
+RUN mkdir -p /workspace/MuseTalk/models/musetalkV15 && \
+    wget -q -O /workspace/MuseTalk/models/musetalkV15/unet.pth \
+    "https://huggingface.co/TMElyralab/MuseTalk/resolve/main/musetalkV15/unet.pth"
 
-RUN curl -L https://huggingface.co/TMElyralab/MuseTalk/resolve/main/musetalkV15/unet.pth \
--o models/musetalkV15/unet.pth
+RUN mkdir -p /workspace/MuseTalk/models/musetalk && \
+    wget -q -O /workspace/MuseTalk/models/musetalk/config.json \
+    "https://huggingface.co/TMElyralab/MuseTalk/resolve/main/musetalk/config.json"
 
-RUN curl -L https://huggingface.co/stabilityai/sd-vae-ft-mse/resolve/main/diffusion_pytorch_model.safetensors \
--o models/sd-vae/diffusion_pytorch_model.safetensors
+# v1.5 config with 384 dims (matches actual weights)
+RUN echo '{"_class_name":"UNet2DConditionModel","_diffusers_version":"0.6.0.dev0","act_fn":"silu","attention_head_dim":8,"block_out_channels":[320,640,1280,1280],"center_input_sample":false,"cross_attention_dim":384,"down_block_types":["CrossAttnDownBlock2D","CrossAttnDownBlock2D","CrossAttnDownBlock2D","DownBlock2D"],"downsample_padding":1,"flip_sin_to_cos":true,"freq_shift":0,"in_channels":8,"layers_per_block":2,"mid_block_scale_factor":1,"norm_eps":1e-05,"norm_num_groups":32,"out_channels":4,"sample_size":64,"up_block_types":["UpBlock2D","CrossAttnUpBlock2D","CrossAttnUpBlock2D","CrossAttnUpBlock2D"]}' \
+    > /workspace/MuseTalk/models/musetalkV15/musetalk.json
 
-WORKDIR /workspace
+RUN mkdir -p /workspace/MuseTalk/models/sd-vae && \
+    wget -q -O /workspace/MuseTalk/models/sd-vae/diffusion_pytorch_model.safetensors \
+    "https://huggingface.co/stabilityai/sd-vae-ft-mse/resolve/main/diffusion_pytorch_model.safetensors" && \
+    wget -q -O /workspace/MuseTalk/models/sd-vae/config.json \
+    "https://huggingface.co/stabilityai/sd-vae-ft-mse/resolve/main/config.json"
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /workspace/MuseTalk/models/dwpose && \
+    wget -q -O /workspace/MuseTalk/models/dwpose/dw-ll_ucoco_384.pth \
+    "https://huggingface.co/yzd-v/DWPose/resolve/main/dw-ll_ucoco_384.pth"
 
-COPY handler.py .
-
-CMD ["python", "handler.py"]
+RUN mkdir -p /workspace/MuseTalk/models/face-parse-bisent && \
+    wget -q -O /workspace/MuseTalk/models/face-parse-bisent/79999_iter.pth \
+    "https://huggingface.co/TMElyralab/MuseTalk/resolve/main/face-parse-bisent/79999_iter.pth" && \
+    wget -q -O /workspace/MuseTalk/models/face-parse-bisent/resnet18-5
