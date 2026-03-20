@@ -127,6 +127,8 @@ def handler(job):
             "--version", "v15",
             "--ffmpeg_path", "/runpod-volume",
             "--batch_size", "20",
+            "--unet_config", "./models/musetalkV15/musetalk.json",
+            "--unet_model_path", "./models/musetalkV15/unet.pth",
         ]
 
         subprocess.run(cmd, check=True, cwd="/runpod-volume/MuseTalk",
