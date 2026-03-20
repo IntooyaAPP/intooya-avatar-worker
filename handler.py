@@ -139,7 +139,9 @@ def handler(job):
             if os.path.exists(avatar_result_dir):
                 upload_dir_to_r2(avatar_result_dir, r2_cache_prefix)
 
-        vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
+       vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
+        if not vids:
+            vids = glob.glob("/runpod-volume/MuseTalk/results/v15/avatars/avatar_id/vid_output/*.mp4")
         if not vids:
             raise Exception("No output video found")
         output_vid = vids[0]
