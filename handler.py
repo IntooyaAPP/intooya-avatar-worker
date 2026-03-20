@@ -143,7 +143,7 @@ def handler(job):
         if not vids:
             vids = glob.glob("/runpod-volume/MuseTalk/results/v15/avatars/avatar_id/vid_output/*.mp4")
         if not vids:
-            raise Exception("No output video found")
+             raise Exception("No output video found")
         output_vid = vids[0]
 
         print("Building final video...")
