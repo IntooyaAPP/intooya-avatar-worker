@@ -142,7 +142,7 @@ def handler(job):
             else:
                 print(f"WARNING: Cache dir not found at {avatar_result_dir}")
 
-       vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
+        vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
         if not vids:
             vids = glob.glob("/runpod-volume/MuseTalk/results/v15/avatars/avatar_id/vid_output/*.mp4")
         if not vids:
