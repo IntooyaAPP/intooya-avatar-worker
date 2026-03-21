@@ -77,8 +77,11 @@ def handler(job):
         avatar_url = inp["avatar_video_url"]
         voice_url = inp["voice_sample_url"]
         r2_cache_prefix = avatar_cache_key(avatar_url)
-
+        avatar_id = hashlib.md5(avatar_url.encode()).hexdigest()[:8]
+        avatar_cache_dir = f"/runpod-volume/avatars/{avatar_id}"
         avatar_file = job_dir / "avatar.mp4"
+
+
         voice_file = job_dir / "voice.wav"
         speech_file = job_dir / "speech.wav"
 
@@ -114,7 +117,7 @@ def handler(job):
 
         os.makedirs(results_dir, exist_ok=True)
 
-        avatar_id = hashlib.md5(avatar_url.encode()).hexdigest()[:8]
+
         yaml_content = (
             f"{avatar_id}:\n"
             f"  preparation: {preparation}\n"
