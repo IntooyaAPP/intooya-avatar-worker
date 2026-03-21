@@ -108,8 +108,9 @@ def handler(job):
 
         os.makedirs(results_dir, exist_ok=True)
 
+        avatar_id = hashlib.md5(avatar_url.encode()).hexdigest()[:8]
         yaml_content = (
-            "avatar_id:\n"
+            f"{avatar_id}:\n"
             f"  preparation: {preparation}\n"
             f"  video_path: \"{avatar_file}\"\n"
             "  bbox_shift: 5\n"
@@ -135,7 +136,7 @@ def handler(job):
             env={**os.environ, "PYTHONPATH": "/runpod-volume/MuseTalk"})
 
         if not has_cache:
-            avatar_result_dir = "/runpod-volume/MuseTalk/results/v15/avatars/avatar_id"
+            avatar_result_dir = f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}"
             if os.path.exists(avatar_result_dir):
                 upload_dir_to_r2(avatar_result_dir, r2_cache_prefix)
                 print("Avatar cache uploaded successfully")
@@ -144,7 +145,7 @@ def handler(job):
 
         vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
         if not vids:
-            vids = glob.glob("/runpod-volume/MuseTalk/results/v15/avatars/avatar_id/vid_output/*.mp4")
+            vids = glob.glob(f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}/vid_output/*.mp4")
         if not vids:
              raise Exception("No output video found")
         output_vid = vids[0]
