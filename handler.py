@@ -135,9 +135,12 @@ def handler(job):
             env={**os.environ, "PYTHONPATH": "/runpod-volume/MuseTalk"})
 
         if not has_cache:
-            avatar_result_dir = f"{results_dir}/v15/avatars/avatar_id"
+            avatar_result_dir = "/runpod-volume/MuseTalk/results/v15/avatars/avatar_id"
             if os.path.exists(avatar_result_dir):
                 upload_dir_to_r2(avatar_result_dir, r2_cache_prefix)
+                print("Avatar cache uploaded successfully")
+            else:
+                print(f"WARNING: Cache dir not found at {avatar_result_dir}")
 
        vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
         if not vids:
