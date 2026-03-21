@@ -96,9 +96,15 @@ def handler(job):
         preparation = "false" if has_cache else "true"
         if has_cache:
             print("Using cached avatar - fast inference!")
+            preparation = "false"
+            # Restore cache to where MuseTalk expects it
+            musetalk_avatar_dir = f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}"
+            if not os.path.exists(musetalk_avatar_dir):
+                shutil.copytree(avatar_cache_dir, musetalk_avatar_dir)
+                print(f"Cache restored to {musetalk_avatar_dir}")
         else:
             print("First time - preprocessing avatar (one-time cost)...")
-
+            preparation = "true"
         print("Generating speech with XTTS...")
         subprocess.run([
             "/runpod-volume/venvs/xtts/bin/python",
