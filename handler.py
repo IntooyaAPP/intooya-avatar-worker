@@ -6,6 +6,7 @@ import boto3
 import shutil
 import hashlib
 import glob
+import time
 from pathlib import Path
 
 BASE = Path("/runpod-volume/worker")
@@ -39,7 +40,6 @@ def avatar_cache_key(avatar_url):
 
 def upload_dir_to_r2(local_dir, r2_prefix):
     for root, dirs, files in os.walk(local_dir):
-        # Skip full_imgs - too large and regenerated from video
         dirs[:] = [d for d in dirs if d != 'full_imgs']
         for file in files:
             local_path = os.path.join(root, file)
@@ -66,10 +66,10 @@ def download_dir_from_r2(r2_prefix, local_dir):
     return found
 
 def handler(job):
+    t_start = time.time()
     job_id = str(uuid.uuid4())
     job_dir = TMP / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
-    avatar_cache_dir = f"/runpod-volume/avatars/{job_id}"
     results_dir = f"/runpod-volume/results/{job_id}"
     yaml_path = f"/runpod-volume/MuseTalk/configs/inference/realtime_{job_id}.yaml"
 
@@ -82,43 +82,49 @@ def handler(job):
         avatar_id = hashlib.md5(avatar_url.encode()).hexdigest()[:8]
         avatar_cache_dir = f"/runpod-volume/avatars/{avatar_id}"
         avatar_file = job_dir / "avatar.mp4"
-
-
         voice_file = job_dir / "voice.wav"
         speech_file = job_dir / "speech.wav"
 
+        t1 = time.time()
         print("Downloading avatar...")
         download(avatar_url, avatar_file)
+        print(f"⏱ Avatar download: {round(time.time()-t1, 1)}s")
 
+        t2 = time.time()
         print("Downloading voice sample...")
         voice_raw = job_dir / "voice_raw"
         download(voice_url, voice_raw)
         subprocess.run(["/runpod-volume/ffmpeg", "-y", "-i", str(voice_raw),
             "-ar", "22050", "-ac", "1", str(voice_file)], check=True)
+        print(f"⏱ Voice download + convert: {round(time.time()-t2, 1)}s")
 
+        t3 = time.time()
         print("Checking avatar cache...")
         has_cache = download_dir_from_r2(r2_cache_prefix, avatar_cache_dir)
         preparation = "false" if has_cache else "true"
         if has_cache:
+            print(f"⏱ Cache download: {round(time.time()-t3, 1)}s")
             print("Using cached avatar - fast inference!")
-            preparation = "false"
-            # Restore cache to where MuseTalk expects it
             musetalk_avatar_dir = f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}"
             if not os.path.exists(musetalk_avatar_dir):
+                t3b = time.time()
                 shutil.copytree(avatar_cache_dir, musetalk_avatar_dir)
+                print(f"⏱ Cache restore to MuseTalk: {round(time.time()-t3b, 1)}s")
                 print(f"Cache restored to {musetalk_avatar_dir}")
         else:
+            print(f"⏱ Cache check (miss): {round(time.time()-t3, 1)}s")
             print("First time - preprocessing avatar (one-time cost)...")
-            preparation = "true"
+
+        t4 = time.time()
         print("Generating speech with XTTS...")
         subprocess.run([
             "/runpod-volume/venvs/xtts/bin/python",
             "/runpod-volume/xtts_infer.py",
             script, str(voice_file), str(speech_file)
         ], check=True)
+        print(f"⏱ XTTS speech generation: {round(time.time()-t4, 1)}s")
 
         os.makedirs(results_dir, exist_ok=True)
-
 
         yaml_content = (
             f"{avatar_id}:\n"
@@ -131,6 +137,7 @@ def handler(job):
         with open(yaml_path, "w") as f:
             f.write(yaml_content)
 
+        t5 = time.time()
         cmd = [
             "/runpod-volume/venvs/musetalk/bin/python",
             "scripts/realtime_inference.py",
@@ -142,25 +149,28 @@ def handler(job):
             "--unet_config", "./models/musetalkV15/musetalk.json",
             "--unet_model_path", "./models/musetalkV15/unet.pth",
         ]
-
         subprocess.run(cmd, check=True, cwd="/runpod-volume/MuseTalk",
             env={**os.environ, "PYTHONPATH": "/runpod-volume/MuseTalk"})
+        print(f"⏱ MuseTalk inference: {round(time.time()-t5, 1)}s")
 
         if not has_cache:
+            t5b = time.time()
             avatar_result_dir = f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}"
             if os.path.exists(avatar_result_dir):
                 upload_dir_to_r2(avatar_result_dir, r2_cache_prefix)
                 print("Avatar cache uploaded successfully")
             else:
                 print(f"WARNING: Cache dir not found at {avatar_result_dir}")
+            print(f"⏱ Cache upload: {round(time.time()-t5b, 1)}s")
 
         vids = glob.glob(f"{results_dir}/**/*.mp4", recursive=True)
         if not vids:
             vids = glob.glob(f"/runpod-volume/MuseTalk/results/v15/avatars/{avatar_id}/vid_output/*.mp4")
         if not vids:
-             raise Exception("No output video found")
+            raise Exception("No output video found")
         output_vid = vids[0]
 
+        t6 = time.time()
         print("Building final video...")
         final_video = OUTPUT / f"{job_id}.mp4"
         subprocess.run([
@@ -175,6 +185,8 @@ def handler(job):
         key = f"generated/{job_id}.mp4"
         s3.upload_file(str(final_video), R2_BUCKET, key)
         url = f"{R2_PUBLIC_BASE}/{key}"
+        print(f"⏱ Final video + upload: {round(time.time()-t6, 1)}s")
+        print(f"⏱ TOTAL: {round(time.time()-t_start, 1)}s")
         print(f"Done: {url}")
         return {"status": "COMPLETED", "video_url": url}
 
