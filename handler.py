@@ -40,7 +40,7 @@ def avatar_cache_key(avatar_url):
 
 def upload_dir_to_r2(local_dir, r2_prefix):
     for root, dirs, files in os.walk(local_dir):
-        dirs[:] = [d for d in dirs if d != 'full_imgs']
+        dirs[:] = [d for d in dirs if d not in ('full_imgs', 'mask', 'tmp')]
         for file in files:
             local_path = os.path.join(root, file)
             relative = os.path.relpath(local_path, local_dir)
