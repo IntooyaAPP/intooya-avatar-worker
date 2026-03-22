@@ -1,4 +1,4 @@
-import os
+pythonimport os
 import uuid
 import subprocess
 import requests
@@ -24,6 +24,7 @@ R2_PUBLIC_BASE = "https://pub-fd10b60f6b9c468fb83b93b7625f32a9.r2.dev"
 s3 = boto3.client("s3", endpoint_url=R2_ENDPOINT,
     aws_access_key_id=R2_ACCESS_KEY, aws_secret_access_key=R2_SECRET_KEY)
 
+os.environ["TTS_HOME"] = "/runpod-volume"
 os.environ["COQUI_TOS_AGREED"] = "1"
 print("Handler starting up.")
 
