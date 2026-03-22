@@ -199,9 +199,8 @@ def handler(job):
 
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
-        shutil.rmtree(avatar_cache_dir, ignore_errors=True)
         shutil.rmtree(results_dir, ignore_errors=True)
         Path(yaml_path).unlink(missing_ok=True)
-
+        # avatar_cache_dir and musetalk_avatar_dir kept on volume for reuse
 import runpod
 runpod.serverless.start({"handler": handler})
