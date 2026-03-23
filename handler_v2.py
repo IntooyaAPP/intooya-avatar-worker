@@ -97,7 +97,9 @@ def handler(job):
             "--video_path", str(avatar_trimmed),
             "--audio_path", str(speech_file),
             "--video_out_path", str(output_file)
-        ], check=True, env={**os.environ, "PYTHONPATH": "/workspace/LatentSync"})
+        ], check=True,
+           cwd="/workspace/LatentSync",
+           env={**os.environ, "PYTHONPATH": "/workspace/LatentSync"})
         print(f"⏱ LatentSync: {round(time.time()-t4, 1)}s")
 
         t5 = time.time()
